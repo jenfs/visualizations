@@ -1,6 +1,6 @@
 {
   "name": "Visualizations",
-  "tagline": "",
+  "tagline": "\"There is magic in graphs.\"  ~ H.D. Hubbard",
   "body": "### West Nile Virus Cases in California\r\nCartogram and zoomable, stacked bar chart show geographic and temporal trends. Implemented in D3.\r\n<a href=\"./west_nile_california/\"><img src=\"./west_nile_california/teaser.png\" /></a>",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
