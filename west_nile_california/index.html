@@ -114,12 +114,18 @@
 	.legend {
 	  font: 10px sans-serif;	
 	}
+		
+		#footer {
+			clear: both;
+			padding-left: 10px;
+		}
     </style>
   </head>
   <body>
     <div id="header">
 	  <h1>West Nile Virus in California 2006-2015</h1>
-	  <p>New cases of West Nile virus were reported weekly in California. The map on the left illustrates the yearly outbreak, by county. The map is normalized to show the number of cases per 100,000 people. The bar charts on the right show the raw number of cases reported each week. We see that the outbreaks occur in the summer, and follow a bell-curve. Select sections on the bottom chart to see them in detail on the top.
+	  <p>New cases of West Nile virus were reported weekly in California. The cartogram on the left illustrates the yearly outbreak, by county. The map is normalized to show the number of cases per 100,000 people. The bar charts on the right show the raw number of cases reported each week.  Select sections on the bottom chart to see them in detail on the top.</p>
+		<p>We see the outbreaks occur every summer; each summer outbreak appears roughly normal; and each outbreak happens earlier in the north coast and later in the foothills.
      </p>
 	</div>
 	 
@@ -635,5 +641,11 @@ legendText
     }
 
 </script>
+	<div id="footer">
+	<p>
+	Cartogram based on <a href="http://prag.ma/code/d3-cartogram/">Cartograms with d3 & TopoJSON</a>. Stacked bar charts based on <a href="http://bl.ocks.org/godds/ec089a2cf3e06a2cd5fc">Zoomable Stacked Bar Chart Test</a>. Colors by <a href="http://colorbrewer2.org">ColorBrewer 2.0</a>.
+	
+	</p>
+	</div>	
   </body>
 </html>
