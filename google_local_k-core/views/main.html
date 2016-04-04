@@ -1,0 +1,75 @@
+
+		
+<div id="network" ng-style="{'background-color': bg.color}"></div>
+
+<div class="loading">
+	<span us-spinner="{radius:30, width:3, length: 100}"></span>
+</div>
+<div class="summary" ng-show="overlayState.show">
+	<h1>5-Core Decomposition of Review Networks</h1>
+	<span> Presented here are the 5-core decompositions of Google Local reviews for restaurants. The nodes of the network are either users (reviewers) or places (restaurants). Edges are reviews linking these. Reviews were first filtered by the restaurants' cities; then 5-core decomposition was applied. All nodes are shown in the visualizations; but only 1% random sample of edges are shown. </span>
+	<h3>City:</h3>
+	<select class="form-control" id="network-selector" ng-options="networkName for networkName in networkNames" ng-change="switchNetwork()" ng-model="currentNetwork"></select>
+	<h3>Node Color Style:</h3>
+	<select class="form-control" id="vs-selector" ng-options="styleName for styleName in visualStyleNames" ng-change="switchVS()" ng-model="currentVS"></select>
+	<h3>Node Color Legend: </h3>
+	<img id="legend" src="images/legend_class.png" />
+
+</div>
+<div ng-show="browserState.show" class="table-browser">
+	<div id="table-view">
+		<tabset justified="true">
+			<tab heading="Node">
+				<table class="table table-striped table-bordered table-hover">
+					<thead>
+						<tr>
+							<td>SUID
+							<td ng-repeat="columnName in columnNames">
+								{{columnName}}
+								<tbody data-ng-repeat="node in selectedNodes">
+									<tr>
+										<td>{{ node.id() }}
+										<td ng-repeat="colName in columnNames">{{node.data(colName)}}
+				</table>
+			</tab>
+			<tab heading="Edge">
+				<table class="table table-striped table-bordered table-hover">
+					<thead>
+						<tr>
+							<td>SUID
+							<td ng-repeat="columnName in edgeColumnNames">{{columnName}}
+								<tbody data-ng-repeat="edge in selectedEdges">
+									<tr>
+										<td>{{ edge.id() }}
+										<td ng-repeat="colName in edgeColumnNames">{{edge.data(colName)}}
+				</table>
+			</tab>
+		</tabset>
+	</div>
+</div>
+<div class="home-button" ng-click="toggleToolbar()" style="clear:both" tooltip-placement="left" tooltip="Show/Hide Toolbar">
+	<span class="glyphicon glyphicon-sort"></span>
+</div>
+<div class="command-bar" ng-show="toolbarState.show">
+	<div class="icon-button" ng-click="toggleTableBrowser()" tooltip-placement="left" tooltip="Show/Hide Table">
+		<span class="glyphicon glyphicon-list-alt"></span>
+	</div>
+	<div class="icon-button" ng-click="toggleOverlay()" tooltip-placement="left" tooltip="Show/Hide Selector">
+		<span class="glyphicon glyphicon-info-sign"></span>
+	</div>
+	<div class="icon-button" ng-click="fit()" tooltip-placement="left" tooltip="Fit to window">
+		<span class="glyphicon glyphicon-resize-full"></span>
+	</div>
+</div>
+<script>
+	var legendList = [
+    "images/legend_class.png",
+    "images/legend_degree.png",
+    "images/legend_class.png",
+    "images/legend_rating.png"
+    ];
+
+$('#vs-selector').change(function () {
+    var val = parseInt($('#vs-selector').val());
+    $('img').attr("src",legendList[val]);
+});</script>
