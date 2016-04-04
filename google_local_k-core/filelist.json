@@ -1,0 +1,8 @@
+{
+ "San Diego":"SanDiego_5core_ratings.json","style":"network_styles.json",
+ "Houston":"Houston_5core_ratings.json",
+ "Los Angeles":"LosAngeles_5core_ratings.json",
+ "Chicago":"Chicago_5core_ratings.json",
+ "New York":"NewYork_5core_ratings.json",
+ "Philadelphia":"Philadelphia_5core_ratings.json"
+}
