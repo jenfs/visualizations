@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="scripts/d3.v3.js"></script>
+<style>
+
+.label, .tick {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.dot {
+  stroke: #000;
+}
+	
+	.title {
+		white-space: pre-wrap;
+	}
+	
+	#selector {
+		position: absolute;
+		left: 800px;
+		top: 150px;
+		width: 450px;
+	  }
+
+	h1 { text-align: center; }
+</style>
+	</head>
+<body>
+	<h1>Word Ranking in Reviews</h1>
+  <div id='selector'>
+  <form>
+        <p>
+          <label>Compare: <select id="field"></select></label>
+		  </p>
+		  
+      </form>
+	  <form name="myform" onSubmit="return handleClick()">
+          <input name="Submit"  type="submit" value="Find term" >  
+		  <input type="text" id="myVal" placeholder=""/>
+		    
+        </form>
+	  <p>
+	  <form onSubmit="return handleClearClick()">
+         	<input name="Submit" type="submit" value="Clear all">
+	  </form>
+		  </p>
+	 <p>This analysis is inspired by Chapter 10 of Christian Rudder's Dataclysm. The scatter plots show which words and phrases are unique to reviews. The reviews are split into two classes: those of a certain restaurant type and all other reviews. The words are then ranked in terms of frequency within each of these classes.
+	  </p>
+		<p>The position along the axis indicates how "popular" that term is -- the farther along the axis, the higher the popularity. Thus, the upper left quadrant contains terms that are popular in the target category but not in the remaning categories. The lower right quadrant is the complement.
+	  </p>
+  </div>
+<script>
+
+var fields = [
+      {name: "American Restaurant", id: "american", key: "data/scatter/American_Restaurant.tsv"},
+      {name: "Chicken Restaurant", id: "chicken", key: "data/scatter/Chicken_Restaurant.tsv"},
+      {name: "Ice Cream Shop", id: "icecream", key: "data/scatter/Ice_Cream_Shop.tsv"},
+      {name: "Lounge", id: "lounge", key: "data/scatter/Lounge.tsv"},
+      {name: "Southeast Asian Restaurant", id: "southeastasian", key: "data/scatter/Southeast_Asian_Restaurant.tsv"},
+      {name: "San Diego vs. Chicago", id: "sdchi", key: "data/scatter/sandiego_chicago.tsv"},
+    ],
+    fieldsById = d3.nest()
+            .key(function(d) { return d.id; })
+            .rollup(function(d) { return d[0]; })
+            .map(fields),
+    field = fields[0];
+
+  var fieldSelect = d3.select("#field")
+        .on("change", function(e) {
+          field = fields[this.selectedIndex];
+          location.hash = "#" + field.id;
+		  drawScatter(field.key);
+        });
+
+  fieldSelect.selectAll("option")
+        .data(fields)
+        .enter()
+        .append("option")
+          .attr("value", function(d) { return d.id; })
+          .text(function(d) { return d.name; });	
+
+function handleClick(event){
+	var selection = "circle[term='" + document.getElementById("myVal").value + "']";
+	
+	
+	d3.selectAll(selection)
+	  .attr("selected", true)
+	  .style("fill", "#ff3399")
+	  .style("opacity", "1")
+	  .attr("r", 5);
+	return false;
+}
+	
+function handleClearClick(event){
+	var f = d3.selectAll("circle[selected=true]")
+	  .style("fill", "blue")
+	  .style("opacity", "0.4")
+	  .attr("r", 3.5)
+	  .attr("selected", null);
+	return false;
+}
+	
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = 700 - margin.left - margin.right,
+    height = 700 - margin.top - margin.bottom;
+
+var x = d3.scale.linear()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var color = d3.scale.category10();
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  drawScatter("data/scatter/American_Restaurant.tsv");
+	
+	var theData;
+	
+	
+	function drawScatter(filename) {
+	d3.tsv(filename, function(error, data) {
+  if (error) throw error;
+
+  data.forEach(function(d) {
+    d.rank_other = +d.rank_other;
+    d.rank_category = +d.rank_category;
+  });
+
+  theData = data;
+  var max = d3.max(data, function(d) { return d.rank_other; });	
+	
+  x.domain(d3.extent(data, function(d) { return d.rank_other; })).nice();
+  y.domain(d3.extent(data, function(d) { return d.rank_category; })).nice();
+
+  svg.selectAll(".dot").remove();
+  svg.selectAll("#x-axis").remove();
+  svg.selectAll("#y-axis").remove();
+	
+	
+  svg.append("g")
+  	  .attr("id", "x-axis")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", -6)
+      .style("text-anchor", "end")
+      .text("Rank Within Other Categories");
+
+  svg.append("g")
+  	  .attr("id", "y-axis")
+      .attr("class", "y axis")
+      .call(yAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("Rank Within " + field.name);
+
+  svg.selectAll(".dot")
+      .data(data)
+    .enter().append("circle")
+      .attr("term", function(d) { return d.term; })
+      .attr("class", "dot")
+      .attr("r", 3.5)
+      .attr("cx", function(d) { return x(d.rank_other); })
+      .attr("cy", function(d) { return y(d.rank_category); })
+      .style("fill", "blue")
+  	  .style("opacity", "0.4")
+  	.append("title")
+  	  .text(function (d) { return d.term + "\n\t" + field.name + " rank: " + d.rank_category + "\n\tOther categories rank: " + d.rank_other;  });
+
+    
+	svg.append("line")
+    .attr('x1',x(0))
+    .attr('x2',x(max))
+    .attr('y1',y(0))
+    .attr('y2',y(max))
+	.attr("stroke-width", 3)
+	.attr("stroke", "#000");
+	
+	
+});
+	}
+</script>
+	</body>
+</html>
