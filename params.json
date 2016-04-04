@@ -1,6 +1,6 @@
 {
   "name": "Visuals",
   "tagline": "\"There is magic in graphs.\"  ~ Henry D. Hubbard",
-  "body": "### West Nile Virus Cases in California\r\nA zoomable, stacked bar chart and a cartogram show geographic and temporal trends. Implemented in D3.\r\n<a href=\"./west_nile_california/\"><img src=\"./west_nile_california/teaser.png\" /></a>",
+  "body": "### West Nile Virus Cases in California\r\nA zoomable, stacked bar chart and a cartogram show geographic and temporal trends. Implemented in D3.\r\n<a href=\"./west_nile_california/\"><img src=\"./west_nile_california/teaser.png\" /></a>\r\n\r\n### n-Grams in Google Local Reviews\r\nCompares the ranking of n-grams between two different subsets of Google Local reviews. Implemented in D3.\r\n<a href=\"./google_local_n-gram_scatter/\"><img src=\"./google_local_n-gram_scatter/teaser.png\" /></a>",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
