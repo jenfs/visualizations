@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>West Nile Virus Cases</title>
+    <meta charset="utf-8">
+    <script src="scripts/d3.v3.js"></script>
+    <script src="scripts/colorbrewer.js"></script>
+    <script src="scripts/topojson.js"></script>
+    <script src="scripts/cartogram.js"></script>
+	
+	<style type="text/css">
+
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
+        font-size: 14px;
+        line-height: 1.4em;
+        padding: 0;
+        margin: 0;
+      }
+
+	  #header {
+	    text-align: center;
+		padding: 20px;
+		width: 80%;
+		margin: 0 auto 0 auto;
+	  }
+		
+      #container {
+        width: 750px;
+        margin: 20px auto;
+		float: left;
+		padding-left: 20px;
+      }
+		
+	  #chart {
+		margin: 20px auto;
+	  }
+
+      h1 {
+        font-size: 200%;
+        margin: 0 0 15px 0;
+      }
+
+      h2 {
+        margin: 0 0 10px 0;
+      }
+
+      p {
+        margin: 0 0 10px;
+      }
+
+      form, form > * {
+        margin: 0;
+      }
+
+      #status {
+		font-size: 200%;
+        color: #999;
+		position: relative;
+		left: 120px;
+		top: 150px;
+		
+      }
+
+      #map-container {
+        height: 600px;
+        text-align: center;
+        /*position: relative;*/
+        margin: 20px 0;
+      }
+
+	  #map text {
+	    fill: dimgray;
+	  }
+		
+      #map {
+        display: block;
+        background: #fff;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+		z-index: -1;
+      }
+
+      path.county {
+        stroke: #666;
+        stroke-width: .5;
+      }
+
+      path.county:hover {
+        stroke: #000;
+      }
+
+      select {
+        font-size: inherit;
+      }
+		
+	  
+       .axis {
+      font: 10px sans-serif;
+    }
+    .axis path,
+    .axis line {
+      fill: none;
+      stroke: #000;
+      shape-rendering: crispEdges;
+    }
+    .brush .extent {
+      stroke: #fff;
+      fill-opacity: .125;
+      shape-rendering: crispEdges;
+    }
+	
+	.legend {
+	  font: 10px sans-serif;	
+	}
+    </style>
+  </head>
+  <body>
+    <div id="header">
+	  <h1>West Nile Virus in California 2006-2015</h1>
+	  <p>New cases of West Nile virus were reported weekly in California. The map on the left illustrates the yearly outbreak, by county. The map is normalized to show the number of cases per 100,000 people. The bar charts on the right show the raw number of cases reported each week. We see that the outbreaks occur in the summer, and follow a bell-curve. Select sections on the bottom chart to see them in detail on the top.
+     </p>
+	</div>
+	 
+	
+    <div id="container">
+      	<h2>Reported cases by year and county</h2>
+      <form>
+        <p>
+          <label>Scale counties by <select id="field"></select></label>
+        </p>
+      </form>
+      <div id="map-container">
+        <span id="status"></span>
+ 
+        <svg id="map"></svg>
+      </div>
+      
+    </div>
+	  <div id="chart">
+	    <h2>Reported cases by week and region</h2>
+	  </div>
+    <script>
+
+      var fmt_rate = (function() {
+        var fmt = d3.format(".2f");
+          return function(n) { return fmt(n); };
+      })(),
+          fields = [
+            {name: "(no scale)", id: "none"},
+            {name: "Population", id: "pop", key: "population_%d"},
+			{name: "West Nile rate", id: "wnr", key: "west_nile_rate_%d"},
+          ],
+          fieldsById = d3.nest()
+            .key(function(d) { return d.id; })
+            .rollup(function(d) { return d[0]; })
+            .map(fields),
+          field = fields[0],
+          year = 2005,
+		  ext_color_domain,
+		  color;
+	
+      var body = d3.select("body"),
+          stat = d3.select("#status");
+
+      var fieldSelect = d3.select("#field")
+        .on("change", function(e) {
+          field = fields[this.selectedIndex];
+          location.hash = "#" + field.id;
+        });
+
+      fieldSelect.selectAll("option")
+        .data(fields)
+        .enter()
+        .append("option")
+          .attr("value", function(d) { return d.id; })
+          .text(function(d) { return d.name; });
+
+      var map = d3.select("#map"),
+          counties = map.append("g")
+            .attr("id", "counties")
+            .selectAll("path");
+
+      var proj= d3.geo.transverseMercator().rotate([120, -38]),
+          topology,
+          geometries,
+          rawData,
+          dataById = {},
+          carto = d3.cartogram()
+            .projection(proj)
+            .properties(function(d) {
+              return dataById[d.id];
+            })
+            .value(function(d) {
+              return +d.properties[field];
+            });
+
+      window.onhashchange = function() {
+        parseHash();
+      };
+
+      var url = "data/caCountiesTopoSimple.json";
+      d3.json(url, function(topo) {
+        topology = topo;
+        geometries = topology.objects.subunits.geometries;
+        d3.csv("data/population_west_nile.csv", function(data) {
+          rawData = data;
+          dataById = d3.nest()
+            .key(function(d) { return d.id_str; })
+            .rollup(function(d) { return d[0]; })
+            .map(data);
+          init();
+        });
+      });
+
+		
+	  Array.prototype.sum = function (prop) {
+        var total = 0
+        for ( var i = 0, _len = this.length; i < _len; i++ ) {
+          total += +this[i][prop]
+        }
+        return total
+      }	
+	  
+	  Array.prototype.count = function (prop) {
+        var total = 0
+        for ( var i = 0, _len = this.length; i < _len; i++ ) {
+          total += (+this[i][prop] > 0) ? 1 : 0
+        }
+        return total
+      }	
+		
+	  function getInfectionRateStats() {
+		var rate_sum = 0,
+			rate_count = 0,
+			rate_max = 0;
+		for (i = 2006; i < 2016; ++i) {
+			var rate_col = fields[2].key.replace("%d", i);
+			rate_max = Math.max(rate_max,
+			  Math.max.apply(Math, rawData.map(
+				function(o) { return +o[rate_col]; }
+			  )));
+			rate_sum += rawData.sum(rate_col);
+			rate_count += rawData.count(rate_col);	
+		}
+		 var rate_mean = rate_sum / rate_count;
+		 return [rate_mean, rate_max];
+	  }
+	
+      function init() {
+		var rate_stats = getInfectionRateStats();
+		ext_color_domain = [0, 0.01, rate_stats[0], rate_stats[1]];
+		var colors = colorbrewer.RdPu[4]
+            .map(function(rgb) { return d3.hsl(rgb); });
+		  
+		color = d3.scale.linear()
+            .range(colors)
+            .domain(ext_color_domain);
+		  
+		  
+        var features = carto.features(topology, geometries),
+            path = d3.geo.path().projection(proj);
+		proj.scale(3500).translate([250,250]);
+		counties = counties.data(features)
+          .enter()
+          .append("path")
+            .attr("class", "county")
+            .attr("id", function(d) {
+			  return d.id; 
+            })
+            .attr("fill", "#fafafa")
+            .attr("d", path);
+
+        counties.append("title");
+
+        parseHash();
+		
+		 var legend = map.selectAll("g.legend")
+  		   .data(ext_color_domain)
+           .enter()
+		   .append("g")
+           .attr("class", "legend");
+		  
+		  
+  		var ls_w = 20, ls_h = 20;
+
+	    legend.append("rect")
+	  	  .attr("x", 20)
+	      .attr("y", function(d, i){ return 600 - (i*ls_h) - 2*ls_h;})
+	      .attr("width", ls_w)
+	      .attr("height", ls_h)
+	      .style("fill", function(d, i) { return color(d); })
+	      .style("opacity", 0.8);
+
+	    legend.append("text")
+	      .attr("x", 50)
+	      .attr("y", function(d, i){ return 600 - (i*ls_h) - ls_h - 4;})
+	      .text(function(d, i){ return fmt_rate(ext_color_domain[i]); });
+		  
+		var legend_offset = ext_color_domain.length;
+		
+		map.append("text")
+		  .attr("x", 0)
+	      .attr("y", 600 - (legend_offset * ls_h) - ls_h - 4)
+		  .attr("class", "legend_title")
+		  .text("Cases per 100,000 people" );
+		
+      }
+
+      function reset() {
+        stat.text("");
+        body.classed("updating", false);
+
+        var features = carto.features(topology, geometries),
+            path = d3.geo.path().projection(proj);
+
+        counties.data(features)
+          .transition()
+            .duration(750)
+            .ease("linear")
+            .attr("fill", "#fafafa")
+            .attr("d", path);
+
+        counties.select("title")
+          .text(function(d) {
+            return d.properties.county;
+          });
+      }
+
+      function update() {
+		body.classed("updating", true);
+
+        var scale_key, scale_value, scale_values;
+		if (field.id !== "none") {
+		  scale_key = field.key.replace("%d",  year);
+		  scale_value = function(d) {
+		    return +d.properties[scale_key] ;
+          };
+		  scale_values = counties.data()
+		    .map(scale_value)
+		    .filter(function(n) { return !isNaN(n); })
+		    .sort(d3.ascending);
+		}
+		var fmt = (typeof field.format === "function")
+              ? field.format
+              : d3.format(field.format || ","),
+            wnr_key = "west_nile_rate_" + year,
+            wnr_value = function(d) {
+			  return +d.properties[wnr_key];
+            },
+            wnr_values = counties.data()
+              .map(wnr_value)
+              .filter(function(n) {
+                return !isNaN(n);
+              });
+
+        var features, path;
+		if (field.id !== "none") {
+		  // normalize the scale to positive numbers
+          var scale = d3.scale.linear()
+            .domain([0, scale_values[scale_values.length - 1]])
+            .range([1, 1000]);
+
+		  carto.value(function(d) {
+            return scale(scale_value(d));
+          });
+
+          // generate the new features, pre-projected
+          features = carto(topology, geometries).features;
+	      path = carto.path;
+		} else {
+		  features = carto.features(topology, geometries);
+          path = d3.geo.path().projection(proj);	
+		}
+		  
+        // update the data
+        counties.data(features)
+          .select("title")
+            .text(function(d) {
+              return [d.properties.county, fmt_rate(wnr_value(d))].join(": ");
+            });
+
+        counties.transition()
+          .duration(750)
+          .ease("linear")
+          .attr("fill", function(d) {
+            return color(wnr_value(d));
+          })
+          .attr("d", path);
+		  
+		stat.text("Year: " + year);
+		  
+        body.classed("updating", false);
+		  
+      }
+
+      var deferredUpdate = (function() {
+        var timeout;
+        return function() {
+          var args = arguments;
+          clearTimeout(timeout);
+          return timeout = setTimeout(function() {
+            update.apply(null, args);
+          }, 10);
+        };
+      })();
+
+      var hashish = d3.selectAll("a.hashish")
+        .datum(function() {
+          return this.href;
+        });
+
+      function parseHash() {
+        var parts = location.hash.substr(1).split("/"),
+            desiredFieldId = parts[0],
+            desiredYear = +parts[1];
+
+        field = fieldsById[desiredFieldId] || fields[0];
+        
+        fieldSelect.property("selectedIndex", fields.indexOf(field));
+
+        deferredUpdate();
+        location.replace("#" + field.id);
+        hashish.attr("href", function(href) {
+          return href + location.hash;
+		});
+        
+      }
+		
+	function periodicUpdate() {
+	  year += 1;
+	  if (year > 2015) {
+	    year =  2006;
+	  }
+	  deferredUpdate();
+	}
+		
+	setInterval(periodicUpdate, 1500);
+		
+  </script>
+	  
+  <script>
+
+    // sizing information, including margins so there is space for labels, etc
+    var margin =  { top: 20, right: 20, bottom: 100, left: 20 },
+        width = 560 - margin.left - margin.right,
+        height = 550 - margin.top - margin.bottom,
+        marginOverview = { top: 480, right: margin.right, bottom: 35,  left: margin.left },
+        heightOverview = 550 - marginOverview.top - marginOverview.bottom;
+
+   
+    // some colours to use for the bars
+	var colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f'];
+	var regions = [ "Central Coast","Central Valley","Foothill and Mountain","Inland Empire","North Coast","South Coast"];
+    var colour = d3.scale.ordinal()
+                        .range(colors);
+
+    // mathematical scales for the x and y axes
+    var x = d3.scale.linear()
+                    .range([0, 52*10.5]);
+    var y = d3.scale.linear()
+                    .range([height, 0]);
+    var xOverview = d3.scale.linear()
+                    .range([0, 52*10.5]);
+    var yOverview = d3.scale.linear()
+                    .range([heightOverview, 0]);
+
+    // rendering for the x and y axes
+    var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom");
+    var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left");
+    var xAxisOverview = d3.svg.axis()
+                    .scale(xOverview)
+                    .orient("bottom");
+
+    var svg = d3.select("#chart")
+                    .append("svg") 
+                        .attr("width", width + margin.left + margin.right)
+                        .attr("height", height + margin.top + margin.bottom);
+    var main = svg.append("g")
+                    .attr("class", "main")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var overview = svg.append("g")
+                        .attr("class", "overview")
+                        .attr("transform", "translate(" + marginOverview.left + "," + marginOverview.top + ")");
+
+    // brush tool to let us zoom and pan using the overview chart
+    var brush = d3.svg.brush()
+                        .x(xOverview)
+                        .on("brush", brushed);
+
+    // setup complete, let's get some data!
+    d3.csv("data/region_west_nile.csv", parse, function(data) {
+
+        // data ranges for the x and y axes
+        x.domain([0, 52*10.5]);
+        y.domain([0, d3.max(data, function(d) { return d.total; })]);
+        xOverview.domain(x.domain());
+        yOverview.domain(y.domain());
+
+        // data range for the bar colours
+        // (essentially maps attribute names to colour values)
+        colour.domain(d3.keys(data[0]));
+
+        // draw the axes now that they are fully set up
+        main.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis)
+		    .append("text")
+            .attr("transform", "translate(" + (width / 2) + " ,98)")
+            .style("text-anchor", "middle")
+            .text("Week Offset from Jan 2006");
+        main.append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
+        overview.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + heightOverview + ")")
+            .call(xAxisOverview);
+		
+		
+        // draw the bars
+        main.append("g")
+                .attr("class", "bars")
+            // a group for each stack of bars, positioned in the correct x position
+            .selectAll(".bar.stack")
+            .data(data)
+            .enter().append("g")
+                .attr("class", "bar stack")
+                .attr("transform", function(d) { return "translate(" + x(d.date) + ",0)"; })
+            // a bar for each value in the stack, positioned in the correct y positions
+            .selectAll("rect")
+            .data(function(d) { return d.counts; })
+            .enter().append("rect")
+                .attr("class", "bar")
+                .attr("width", 6)
+                .attr("y", function(d) { return y(d.y1); })
+                .attr("height", function(d) { return y(d.y0) - y(d.y1); })
+                .style("fill", function(d) { return colour(d.name); });
+
+        overview.append("g")
+                    .attr("class", "bars")
+            .selectAll(".bar")
+            .data(data)
+            .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", function(d) { return xOverview(d.date) - 3; })
+                .attr("width", 6)
+                .attr("y", function(d) { return yOverview(d.total); })
+                .attr("height", function(d) { return heightOverview - yOverview(d.total); });
+
+        // add the brush target area on the overview chart
+        overview.append("g")
+                    .attr("class", "x brush")
+                    .call(brush)
+                    .selectAll("rect")
+                        // -6 is magic number to offset positions for styling/interaction to feel right
+                        .attr("y", -6)
+                        // need to manually set the height because the brush has
+                        // no y scale, i.e. we should see the extent being marked
+                        // over the full height of the overview chart
+                        .attr("height", heightOverview + 7);  // +7 is magic number for styling
+		
+	var legend = svg.append("g")
+		.attr("class", "legend")
+		.attr("height", 100)
+		.attr("width", 100)
+		.attr('transform', 'translate(-400,50)');
+
+var legendRect = legend.selectAll('rect').data(colors);
+
+legendRect.enter()
+    .append("rect")
+    .attr("x", width - 65)
+    .attr("width", 10)
+    .attr("height", 10);
+
+legendRect
+    .attr("y", function(d, i) {
+        return i * 20;
+    })
+    .style("fill", function(d) {
+        return d;
+    });
+
+var legendText = legend.selectAll('text').data(regions);
+
+legendText.enter()
+    .append("text")
+    .attr("x", width - 52);
+
+legendText
+    .attr("y", function(d, i) {
+        return i * 20 + 9;
+    })
+    .text(function(d) {
+        return d;
+    });
+       
+
+    });
+
+    // by habit, cleaning/parsing the data and return a new object to ensure/clarify data object structure
+    function parse(d) {
+        var value = { date: +d.Week }; // turn the date string into a date object
+
+        // adding calculated data to each count in preparation for stacking
+        var y0 = 0; // keeps track of where the "previous" value "ended"
+        value.counts = regions.map(function(name) {
+            return { name: name,
+                     y0: y0,
+                     // add this count on to the previous "end" to create a range, and update the "previous end" for the next iteration
+                     y1: y0 += +d[name]
+                   };
+        });
+        // quick way to get the total from the previous calculations
+        value.total = value.counts[value.counts.length - 1].y1;
+        return value;
+    }
+
+    // zooming/panning behaviour for overview chart
+    function brushed() {
+        // update the main chart's x axis data range
+        x.domain(brush.empty() ? xOverview.domain() : brush.extent());
+        // redraw the bars on the main chart
+        main.selectAll(".bar.stack")
+                .attr("transform", function(d) { return "translate(" + x(d.date) + ",0)"; })
+        // redraw the x axis of the main chart
+        main.select(".x.axis").call(xAxis);
+    }
+
+</script>
+  </body>
+</html>
